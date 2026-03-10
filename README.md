@@ -17,8 +17,10 @@ We have a line of players waiting, the match making will check the wait list per
 if there are players in line, we group them until no players are left. 
 Games can start even if players are not full.
 
-Most data required for logic will be in memory, so only the leader will be serving requests, 
-all others will be on standby, if any.
+All data required for logic will be in memory.
+
+It is designed with "Active-Passive" architecture. 
+A match maker becomes active once it aquires the lock in the external cache.
 
 ### Game Server
 This is implimented with the concept of [dedicated game servers](https://en.wikipedia.org/wiki/Game_server).  
