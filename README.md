@@ -20,7 +20,7 @@ Games can start even if players are not full.
 All data required for logic will be in memory.
 
 It is designed with "Active-Passive" architecture. 
-A match maker becomes active once it aquires the lock in the external cache.
+A matchmaker becomes active once it aquires the lock in the external cache.
 
 ### Game Server
 This is implimented with the concept of [dedicated game servers](https://en.wikipedia.org/wiki/Game_server).  
