@@ -25,7 +25,7 @@ A matchmaker becomes active once it aquires the lock in the external cache.
 ### Game Server
 This is implimented with the concept of [dedicated game servers](https://en.wikipedia.org/wiki/Game_server).  
 We can have multiple game servers and each game server can host multiple games,
-all player in the same game will be connected to the same game server via proxy.  
+all player in the same game will be connected to the same game server.  
 
 The game server will be the source of truth for all events, it will correct the client if any missmatch happens.  
 
@@ -33,8 +33,9 @@ The game server will be the source of truth for all events, it will correct the 
 but that seems a bit overkill for my project.
 
 ### Proxy
-Direct the player connection to the correct game server according the the data stored in cache.   
-It will also do some validation to make sure the connection is from a valid player.
+- Provide authorization on incomming requests, extracts info from JWT token, places them in the header
+before sending the request to upstream server.
+- Direct the player connection to the correct game server according the the data stored in cache.   
 
 ## Screenshots
 ...

@@ -1,4 +1,6 @@
 log_level: INFO
+listen_address: :8080
 redis_url: localhost:6379
-match_interval: 5
+match_interval: 5s
 match_size: 5
+
