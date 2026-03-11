@@ -195,5 +195,5 @@ func main() {
 	ctx := kong.Parse(&cfg,
 		kong.Description("Matchmaking service for Typephoon project"),
 		kong.Configuration(kongyaml.Loader, "./matchmaker.yaml"))
-	ctx.FatalIfErrorf(ctx.Run())
+	ctx.FatalIfErrorf(ctx.Run()) // This is basically Config.Run()
 }
