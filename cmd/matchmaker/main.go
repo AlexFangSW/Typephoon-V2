@@ -15,17 +15,26 @@ game server.
 package main
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/alecthomas/kong"
 )
 
 type Config struct {
-	LogLevel      string `enum:"DEBUG,INFO,WARNNING,ERROR" default:"INFO" help:"Set log level"`
-	RedisUrl      string `default:"localhost:6379" help:"Redis url"`
-	MatchInterval int    `help:""`
-	MatchSize     int
+	LogLevel      string `enum:"DEBUG,INFO,WARNNING,ERROR" default:"INFO" env:"LOG_LEVEL" help:"Set log level"`
+	RedisUrl      string `default:"localhost:6379" env:"REDIS_URL" help:"Redis url"`
+	MatchInterval int    `default:"5" env:"MATCH_INTERVAL" help:"Sleep interval before next round of matchmaking"`
+	MatchSize     int    `default:"5" env:"MATCH_SIZE" help:"Max players per game"`
+}
+
+func (c *Config) Run(ctx *Config) error {
+	fmt.Printf("Current Config: %+v\n", ctx)
+	return errors.New("EEEE")
 }
 
 func main() {
 	var cfg Config
-	kong.Parse(&cfg)
+	ctx := kong.Parse(&cfg, kong.Description("Matchmaking service for Typephoon project"))
+	ctx.FatalIfErrorf(ctx.Run())
 }
