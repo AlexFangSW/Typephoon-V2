@@ -1,14 +1,15 @@
 /*
-Matchmaker works by providing two API, one for "queue-in" and another to poll
-for the status.
+Matchmaker works by providing a "queue-in" API,
+this API uses long polling, the response will contain the necessary info
+to connect to the correct game server.
 
 The service is designed with "Active-Passive" architecture in mind,
 we use an external cache as distributed lock, by acquiring the lock
 the matchmaker service becomes "active".
 
 Matchmaking logic:
-When client "queue-in", they are added to a pool.
-Every round, the matchmaker will group clients in the pool and update the status.
+When client "queue-in", they are added to a queue.
+A background worker will try to consume the queue
 Each client will recive a "gameID"" that is used to connect to the game server.
 */
 package main

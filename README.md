@@ -5,40 +5,40 @@ Simplified architecture and implimentation while also preserving scallability an
 ## Architecture
 ![Architecture](./docs/images/architecture.svg)
 
+### Gateway
+- Provide authorization on incomming requests
+- Coordinate with **matchmaker** and **game server** through [NATS](https://nats.io/)
+
 ### General Server
 Serves general APIs for things like "user profile", "authentication" ... etc.  
 
 The web page will also be served here, we will still be using a frontend framework, but it will be built and 
 served on one of the endpoints.
 
-### Match Making Service
-Currently the match making procedure is very simple:
-We have a line of players waiting, the match making will check the wait list periodicly,
-if there are players in line, we group them until no players are left. 
-Games can start even if players are not full.
-
-All data required for logic will be in memory.
-
-It is designed with "Active-Passive" architecture. 
-A matchmaker becomes active once it aquires the lock in the external cache.
+### Matchmaking Service
+Handle matchmaking logic, when match is found, send a message through NATS to 
+notify game servers.  
 
 ### Game Server
-This is implimented with the concept of [dedicated game servers](https://en.wikipedia.org/wiki/Game_server).  
-We can have multiple game servers and each game server can host multiple games,
-all player in the same game will be connected to the same game server.  
+A simgle game server can host multiple games, it is the source of truth for all
+events, players will be corrected if any missmatch happens.
 
-The game server will be the source of truth for all events, it will correct the client if any missmatch happens.  
+## Workflows
+### Matchmaking Sequence
+```mermaid
+sequenceDiagram
+    Client->>Gateway: Queue in
+    Gateway->>NATS: subject `match.join`
+    NATS->>Matchmaker: subject `match.join`
+    Matchmaker->>Matchmaker: Matchmaking logic
+    Matchmaker->>NATS: subject `game.provision`
+    NATS->>GameServer: subject `game.provision`
+    GameServer->>NATS: subject `game.provision`
+    NATS->>Matchmaker: subject `game.provision`
+    Matchmaker->>Matchmaker: generate token
+    Matchmaker->>NATS: subject `match.join`
+    NATS->>Gateway: subject `match.join`
+    Gateway->>Client: Queue in
+```
 
-> Originally thought of using [Agones](https://github.com/googleforgames/agones) to manage a pool of game servers,
-but that seems a bit overkill for my project.
 
-### Proxy
-- Provide authorization on incomming requests, extracts info from JWT token, places them in the header
-before sending the request to upstream server.
-- Direct the player connection to the correct game server according the the data stored in cache.   
-
-## Screenshots
-...
-
-## Development
-...
