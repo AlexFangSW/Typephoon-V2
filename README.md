@@ -3,7 +3,7 @@ A redesign of the previous [Typephoon](https://github.com/AlexFangSW/Typephoon_a
 Simplified architecture and implimentation while also preserving scallability and performance.
 
 ## Goal for V2
-The main goal of version 2 is to remove the need of **event broadcast** for in game events.
+The main goal of version 2 is to **remove** the need of **event broadcast for in-game events**.
 
 In version 1 we only have a single backend service, when scaled up, users in the same game
 might be connected to different servers, to solve this, we connect servers to RabbitMQ
