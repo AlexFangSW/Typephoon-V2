@@ -18,7 +18,7 @@ the backend now consists of three services:
 - Matchmaker
 - Game Server
 
-Aside from that, all services now comminicate through [NATS](https://nats.io/).
+Aside from that, all services now comminicate through [NATS](https://nats.io/).  
 A high-performance, lightweight, open-source messaging system.
 
 In NATS, messages are routed by their **subjects**.  
