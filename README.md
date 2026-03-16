@@ -49,14 +49,21 @@ it is the source of truth for all events, players will be corrected if any missm
 ### Matchmaking Sequence
 ```mermaid
 sequenceDiagram
-    Client->>Gateway: queue in
-    Gateway->>Matchmaker: subject `match.join`
+    Client->>API: queue in
+    API->>Matchmaker: subject `match.join`
     Matchmaker->>Matchmaker: matchmaking logic
     Matchmaker->>GameServer: subject `game.provision`
     GameServer->>Matchmaker: subject `game.provision.done`
     Matchmaker->>Matchmaker: generate token
-    Matchmaker->>Gateway: subject `match.join.done`
-    Gateway->>Client: responde with token
+    Matchmaker->>API: subject `match.join.done`
+    API->>Client: responde with JWT token
 ```
 
+### In-game Sequence
+After aquiring the JWT token, the client connect to the game through the API service.  
+API service uses the JWT token provided to find which subject to listen.  
 
+- API Service -> Game Server: `game.<ID>.in`  
+- Game Server -> API Service: `game.<ID>.out`  
+
+This two subject will run in parallel, they are not sequantial.
