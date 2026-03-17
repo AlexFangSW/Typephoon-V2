@@ -1,16 +1,13 @@
 /*
-Matchmaker works by providing a "queue-in" API,
-this API uses long polling, the response will contain the necessary info
-to connect to the correct game server.
-
 The service is designed with "Active-Passive" architecture in mind,
 we use an external cache as distributed lock, by acquiring the lock
 the matchmaker service becomes "active".
 
 Matchmaking logic:
 When client "queue-in", they are added to a queue.
-A background worker will try to consume the queue
-Each client will recive a "gameID"" that is used to connect to the game server.
+A background worker will consume the queue
+When match is found, each client will recive a JWT token that is used
+to connect to the game server.
 */
 package main
 
@@ -122,7 +119,6 @@ func NewMatchmakingService(
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/v1/matchmaker/queue-int", LogMiddleware(ms.queueIn))
-	mux.HandleFunc("GET /api/v1/matchmaker/status", LogMiddleware(ms.status))
 	mux.HandleFunc("GET /health", LogMiddleware(ms.health))
 
 	server := &http.Server{
@@ -134,13 +130,8 @@ func NewMatchmakingService(
 	return ms
 }
 
-// Add client to wait pool, hmm... how do we implement this pool ???
+// Add client to wait queue, this is just a channel.
 func (ms *MatchmakingService) queueIn(w http.ResponseWriter, r *http.Request) {
-
-}
-
-// Check client status
-func (ms *MatchmakingService) status(w http.ResponseWriter, r *http.Request) {
 
 }
 
@@ -149,12 +140,20 @@ func (ms *MatchmakingService) health(w http.ResponseWriter, r *http.Request) {
 }
 
 // Matchmaking background worker
+//
+// Consume channel, group by players of N under X timeout.
+// Provision the game when N players are found or when timeout
+// happens.
+// Timeout starts when the first player for the next group comes
+// in.
 func (ms *MatchmakingService) worker() {
 
 }
 
 func (ms *MatchmakingService) Start(ctx context.Context) error {
 	slog.Info("Start matchmaking service", "listen", ms.server.Addr)
+	// TODO: First it needs to aquire the 'active' lock.
+	//	If active lock is lost, return error
 	// TODO: Start background worker
 	return ms.server.ListenAndServe()
 }
