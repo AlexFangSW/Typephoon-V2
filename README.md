@@ -58,7 +58,7 @@ which the API forwards to the client.
 Handles matchmaking logic. Listens on NATS for queue events, groups players into matches,
 provisions a Game Server, and returns a matchmaking JWT to each player through the API.
 
-Designed with **Active-Passive** architecture -- all matchmaking logic stays in a single
+Designed with **Active-Passive** architecture, all matchmaking logic stays in a single
 active instance (lock acquired via Redis). Standby instances provide failover.
 The queue lives entirely in-memory; if the active instance goes down, queued players
 are disconnected and must re-queue.
