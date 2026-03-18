@@ -29,7 +29,7 @@ Version 2 utilizes this to **eliminate the need for broadcast**.
 ![Architecture](./docs/images/architecture.svg)
 
 ### API Service
-Entrypoint for all client traffic (HTTP + WebSocket). **Stateless**, can scale horizontally.
+Entrypoint for all client traffic (HTTP + WebSocket).
 
 #### Responsibilities
 - **Serves the frontend** — built SPA served on an endpoint.
@@ -53,11 +53,28 @@ The Game Server is the source of truth and signals game completion through NATS,
 which the API forwards to the client.
 
 ### Matchmaker
-Handle matchmaking logic.  
+Handles matchmaking logic. Listens on NATS for queue events, groups players into matches,
+provisions a Game Server, and returns a matchmaking JWT to each player through the API.
 
-It is designed with **Active-Passive** architecture, this way all matchmaking logic
-stays in the same server, no need for extra communication.  
-With standby servers, the failover shouldn't be too slow.
+Designed with **Active-Passive** architecture — all matchmaking logic stays in a single
+active instance (lock acquired via Redis). Standby instances provide failover.
+The queue lives entirely in-memory; if the active instance goes down, queued players
+are disconnected and must re-queue.
+
+#### Responsibilities
+- **Queue management** — listens on `match.join` and `match.leave` subjects.
+  Maintains a single in-memory FIFO queue of players.
+- **Match formation** — a single background worker continuously consumes the queue.
+  When `match_size` players are available, a match is formed immediately.
+  If a partial group has been waiting longer than `match_timeout`, the match starts
+  with fewer players.
+- **Game provisioning** — sends a `game.provision` request (NATS req-resp) containing
+  the game ID and player list. All Game Servers share a queue group so exactly one
+  handles the request. If no Game Server responds, all players in the match are
+  disconnected with an error.
+- **JWT generation** — signs a matchmaking JWT (asymmetric key) containing the game ID
+  and player ID. The API service verifies it with the corresponding public key.
+  Returned to each player via `match.join.done`.
 
 ### Game Server
 Players in the same game will connect to the same game server, a single game server can host multiple games, 
