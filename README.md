@@ -96,7 +96,7 @@ lives in-memory, can scale horizontally.
   The server stores this and checks correctness. If the position is wrong, the server
   sends a correction (full current input string) and the client snaps back.
   A player finishes when the last word is typed correctly.
-- **Event broadcasting** — sends events to all players in the game via `game.<ID>.out`:
+- **Event broadcasting** — sends events to all players in the game via `game.<ID>.out.<playerID>`:
   countdown, game start, player keystrokes, correction, player finish, game over.
   Receives player input via `game.<ID>.in`.
 - **Result storage** — updates the Redis entry with WPM, accuracy, and finish time
@@ -125,6 +125,6 @@ After aquiring the JWT token, the client connect to the game through the API ser
 API service uses the JWT token provided to find which subject to listen.  
 
 - API Service -> Game Server: `game.<ID>.in`  
-- Game Server -> API Service: `game.<ID>.out`  
+- Game Server -> API Service: `game.<ID>.out.<playerID>`  
 
 This two subject will run in parallel, they are not sequantial.
