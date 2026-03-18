@@ -3,7 +3,7 @@ A redesign of the previous [Typephoon](https://github.com/AlexFangSW/Typephoon_a
 Simplified architecture and implimentation while also preserving scallability and performance.
 
 ## Goal for V2
-The main goal of version 2 is to **remove** the need of **event broadcast between game servers**.
+The main goal of version 2 is to **minimize** the need of **event broadcast**.
 
 In version 1 we only have a single backend service, when scaled up, users in the same game
 might be connected to different servers, to solve this, we connect servers to RabbitMQ
@@ -23,7 +23,9 @@ A high-performance, lightweight, open-source messaging system.
 
 In NATS, messages are routed by their **subjects**.  
 It is stated in the docs that [NATS can manage 10s of millions of subjects](https://docs.nats.io/nats-concepts/subjects#number-of-subjects).  
-Version 2 utilizes this to **eliminate the need for broadcast**.
+Version 2 utilizes this to **minimize broadcast**.
+
+**Broadcast still exist, but only recived by those who need it.**
 
 ## Architecture
 ![Architecture](./docs/images/architecture.svg)
