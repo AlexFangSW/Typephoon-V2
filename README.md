@@ -3,7 +3,7 @@ A redesign of the previous [Typephoon](https://github.com/AlexFangSW/Typephoon_a
 Simplified architecture and implimentation while also preserving scallability and performance.
 
 ## Goal for V2
-The main goal of version 2 is to **remove** the need of **event broadcast for in-game events**.
+The main goal of version 2 is to **remove** the need of **event broadcast between game servers**.
 
 In version 1 we only have a single backend service, when scaled up, users in the same game
 might be connected to different servers, to solve this, we connect servers to RabbitMQ
@@ -77,8 +77,32 @@ are disconnected and must re-queue.
   Returned to each player via `match.join.done`.
 
 ### Game Server
-Players in the same game will connect to the same game server, a single game server can host multiple games, 
-it is the source of truth for all events, players will be corrected if any missmatch happens.
+Hosts typing games. A single instance can run multiple games concurrently, each managed
+by its own background task. There is no shared state between instances — all game state
+lives in-memory, can scale horizontally.
+
+#### Responsibilities
+- **Game provisioning** — subscribes to `game.provision` (NATS queue group, req-resp).
+  On receiving a request, creates a Redis entry at `game:<gameID>` with all players'
+  initial connection status (JSON, TTL 10 min — refreshed on every update).
+  Responds with the game ID.
+- **Game lifecycle** — a background task is created when the first player connects.
+  A countdown (default 5s) starts, then the game begins. The game ends when all players
+  finish, disconnect, or the game timeout is reached (default 10 min, configurable).
+- **Text generation** — generates the typing content for each game.
+- **Input validation** — on each keystroke, the client sends position and current input.
+  The server stores this and checks correctness. If the position is wrong, the server
+  sends a correction (full current input string) and the client snaps back.
+  A player finishes when the last word is typed correctly.
+- **Event broadcasting** — sends events to all players in the game via `game.<ID>.out`:
+  countdown, game start, player keystrokes, correction, player finish, game over.
+  Receives player input via `game.<ID>.in`.
+- **Result storage** — updates the Redis entry with WPM, accuracy, and finish time
+  as each player completes. The frontend polls these results through the API service.
+
+#### No Reconnect
+A typing game is like a 100m race — there is no pause, only restarts.
+If a player disconnects mid-game, they are out.
 
 ## Workflows
 ### Matchmaking Sequence
