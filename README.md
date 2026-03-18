@@ -76,7 +76,7 @@ are disconnected and must re-queue.
   disconnected with an error.
 - **JWT generation** — signs a matchmaking JWT (asymmetric key) containing the game ID
   and player ID. The API service verifies it with the corresponding public key.
-  Returned to each player via `match.join.done`.
+  Returned to each player via the `match.join` response.
 
 ### Game Server
 Hosts typing games. A single instance can run multiple games concurrently, each managed
@@ -111,13 +111,13 @@ If a player disconnects mid-game, they are out.
 ```mermaid
 sequenceDiagram
     Client->>API: queue in
-    API->>Matchmaker: subject `match.join`
+    API->>Matchmaker: req `match.join`
     Matchmaker->>Matchmaker: matchmaking logic
-    Matchmaker->>GameServer: subject `game.provision`
-    GameServer->>Matchmaker: subject `game.provision.done`
+    Matchmaker->>GameServer: req `game.provision`
+    GameServer-->>Matchmaker: resp game ID
     Matchmaker->>Matchmaker: generate token
-    Matchmaker->>API: subject `match.join.done`
-    API->>Client: responde with JWT token
+    Matchmaker-->>API: resp JWT token
+    API->>Client: respond with JWT token
 ```
 
 ### In-game Sequence
