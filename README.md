@@ -29,7 +29,7 @@ Version 2 utilizes this to **eliminate the need for broadcast**.
 ![Architecture](./docs/images/architecture.svg)
 
 ### API Service
-Entrypoint for all client traffic (HTTP + WebSocket).
+Entrypoint for all client traffic (HTTP + WebSocket). **Stateless**, can scale horizontally.
 
 #### Responsibilities
 - **Serves the frontend** — built SPA served on an endpoint.
