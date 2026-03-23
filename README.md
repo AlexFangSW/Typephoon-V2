@@ -101,6 +101,7 @@ lives in-memory, can scale horizontally.
   Receives player input via `game.<ID>.in`.
 - **Result storage**: updates the Redis entry with WPM, accuracy, and finish time
   as each player completes. The frontend polls these results through the API service.
+  If the player is logged in, the result is also stored in the database.
 
 ## Workflows
 ### Matchmaking Sequence
