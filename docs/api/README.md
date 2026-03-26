@@ -10,18 +10,6 @@ Frontend Pages:
     - API for player status
 - Result
     - API for result
-- Profile
-    - statistics
-        - best 
-        - total avg
-        - avg of 5
-    - graphs
-        - query: date range
-        - x: time
-        - y: wpm / acc
-    - history 
-        - time / wpm / acc / rank 
-        - sort xxx
 
 | Method    | Path                       | Description           | Link                               |
 |-----------|----------------------------|-----------------------|------------------------------------|

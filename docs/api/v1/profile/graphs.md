@@ -8,17 +8,17 @@ GET /api/v1/profile/graphs
 | Authorization | string | N/A     | `Bearer xxx.xxx.xxx` | v        | Auth bearer token |
 
 ### Query
-| Name  | Type   | Default | Example | Required | Description                 |
-| ---   | ---    | ---     | ---     | ---      | ---                         |
-| count | number | `10`    | `10`    |          | Number of results to return |
+| Name | Type   | Default | Example | Required | Description                           |
+| ---  | ---    | ---     | ---     | ---      | ---                                   |
+| size | number | `10`    | `10`    |          | Number of results to return, max 1000 |
 
 ## Response
 ### 200
 #### Body
-| Name  | Type              | Example | Nullable | Description                  |
-| ---   | ---               | ---     | ---      | ---                          |
-| items | array[ResultItem] | N/A     |          | A list of result items       |
-| total | number            | `10`    |          | Total number of result items |
+| Name  | Type              | Example | Nullable | Description              |
+| ---   | ---               | ---     | ---      | ---                      |
+| items | array[ResultItem] | N/A     |          | A list of result items   |
+| count | number            | `10`    |          | Number of returned items |
 
 #### ResultItem
 | Name | Type   | Example                | Nullable | Description                            |
@@ -42,7 +42,7 @@ curl -XGET http://localhost:8080/api/v1/profile/graphs \
 ```json
 status: 200
 {
-    "total": 10,
+    "count": 10,
     "items": [
         {
             "ts": "2026-03-25T08:22:08Z",
