@@ -7,11 +7,6 @@ Frontend Pages:
 - Result
     - API for result
 
-- AUTH:
-    - login
-    - logout
-    - token-refresh
-
 | Method    | Path                       | Description           | Link                               |
 |-----------|----------------------------|-----------------------|------------------------------------|
 | POST      | /api/v1/match/queue-in     | Queue in              | [Link](./v1/match/queue-in.md)     |
