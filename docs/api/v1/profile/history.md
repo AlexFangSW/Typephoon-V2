@@ -2,10 +2,10 @@
 GET /api/v1/profile/history
 ```
 ## Request
-### Header
-| Name          | Type   | Default | Example              | Required | Description       |
-| ---           | ---    | ---     | ---                  | ---      | ---               |
-| Authorization | string | N/A     | `Bearer xxx.xxx.xxx` | v        | Auth bearer token |
+### Cookie
+| Name  | Type   | Default | Example       | Required | Description  |
+| ---   | ---    | ---     | ---           | ---      | ---          |
+| TP_AT | string | N/A     | `xxx.xxx.xxx` | v        | Access token |
 
 ### Query
 | Name | Type   | Default | Example | Required | Description                         |
@@ -42,7 +42,7 @@ GET /api/v1/profile/history
 ```bash
 curl -XGET http://localhost:8080/api/v1/profile/history \
     -H 'Content-Type: application/json' \
-    -H 'Authorization: Bearer xxx.xxx.xxx'
+    --cookie 'TP_AT=xxx.xxx.xxx'
 ```
 ```json
 status: 200
