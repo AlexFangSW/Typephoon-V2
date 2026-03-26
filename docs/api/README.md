@@ -22,5 +22,5 @@ Frontend Pages:
 | GET       | /api/v1/profile/graphs     | Profile graphs        | [Link](./v1/profile/graphs.md)     |
 | GET       | /api/v1/profile/history    | Profile history       | [Link](./v1/profile/history.md)    |
 | GET       | /api/v1/auth/login         | Login                 | [Link](./v1/auth/login.md)         |
-| GET       | /api/v1/auth/logout        | Logout                | [Link](./v1/auth/logout.md)        |
-| GET       | /api/v1/auth/refresh       | Refresh access token  | [Link](./v1/auth/refresh.md)       |
+| POST      | /api/v1/auth/logout        | Logout                | [Link](./v1/auth/logout.md)        |
+| POST      | /api/v1/auth/refresh       | Refresh access token  | [Link](./v1/auth/refresh.md)       |
