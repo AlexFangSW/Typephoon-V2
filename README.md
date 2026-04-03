@@ -36,7 +36,7 @@ Entrypoint for all client traffic (HTTP + WebSocket). **Stateless**, can scale h
 #### Responsibilities
 - **Serves the frontend**: built SPA served on an endpoint.
 - **Authentication**: handles login and guest token generation directly.
-  Bearer token (JWT) is the sole mechanism for identifying users.
+  Secure cookie token (JWT) is the sole mechanism for identifying users.
 - **Matchmaking relay**: receives queue requests from clients, publishes to NATS,
   and returns the matchmaking JWT to the client.
 - **In-game WebSocket bridge**: acts as a pure pass-through between the client (WebSocket)
