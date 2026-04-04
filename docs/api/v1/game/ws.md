@@ -20,18 +20,9 @@ WebSocket /api/v1/game/ws
 | keystroke | Keystroke| On every client keystroke | 
 | finish | Finish| Server notifiy clients that the game has finished | 
 | correction | Correction| Correct client state | 
-| too_late | TooLate| When client connects to a started game | 
 
 
 ## Event Structure
-#### Header
-This is used internally between the **API server** and the **Game server** 
-through NATS.
-| Name | Type | Required | Description |
-|---|---|---|---|
-| user_id | string | v |User ID |
-| game_id | string | v |Game ID |
-
 #### Body
 | Name | Type | Required | Description |
 |---|---|---|---|
@@ -101,11 +92,12 @@ Example:
 ```
 
 ### Keystroke
-|Name | Type | Description|
-|---|---|---|
-|wordIndex | number | Current word index |
-|charIndex | number | Current character index|
-|key | string| What key is typed|
+|Name | Type | Nullable | Description|
+|---|--- |--- |---|
+|wordIndex | number | | Current word index |
+|charIndex | number | |Current character index|
+|key | string| |What key is typed|
+|id | string| v |Player ID, can be null when sent from client|
 
 Example:
 ```json
@@ -115,6 +107,7 @@ Example:
     "wordIndex": 5,
     "charIndex": 6,
     "key": "a"
+    "id": "abc123"
   }
 }
 ```
@@ -141,17 +134,5 @@ Example:
   "payload": {
     "text": "aaa bbbb ccccc"
   }
-}
-```
-
-### Too Late
-|Name | Type | Description|
-|---|---|---|
-|text | string | Correct recored input|
-
-Example:
-```json
-{
-  "type": "too_late"
 }
 ```

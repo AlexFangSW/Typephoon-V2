@@ -33,6 +33,8 @@ Version 2 utilizes this to **minimize broadcast**.
 ### API Service
 Entrypoint for all client traffic (HTTP + WebSocket). **Stateless**, can scale horizontally.
 
+API Documentation: [Link](./docs/api/README.md)
+
 #### Responsibilities
 - **Serves the frontend**: built SPA served on an endpoint.
 - **Authentication**: handles login and guest token generation directly.
@@ -86,7 +88,7 @@ lives in-memory, can scale horizontally.
 #### Responsibilities
 - **Game provisioning**: subscribes to `game.provision` (NATS queue group, req-resp).
   On receiving a request, creates a Redis entry at `game:<gameID>` with all players'
-  initial connection status (JSON, TTL 10 min: refreshed on every update).
+  status (JSON, TTL 10 min: refreshed on every update).
   Responds with the game ID.
 - **Game lifecycle**: a background task is created when the first player connects.
   A countdown (default 5s) starts, then the game begins. The game ends when all players
