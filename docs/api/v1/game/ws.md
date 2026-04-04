@@ -1,4 +1,13 @@
-# WebSocket Events
+```
+WebSocket /api/v1/game/ws
+```
+
+## Connection Request
+### Header
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| match_token  | string (JWT token)   | v  | Identify user and game  |
+
 
 ## Event Types
 | Name | Paylaod | Usage | 
@@ -11,14 +20,17 @@
 | keystroke | Keystroke| On every client keystroke | 
 | finish | Finish| Server notifiy clients that the game has finished | 
 | correction | Correction| Correct client state | 
-| tooLate | TooLate| When client connects to a started game | 
+| too_late | TooLate| When client connects to a started game | 
 
 
 ## Event Structure
 #### Header
+This is used internally between the **API server** and the **Game server** 
+through NATS.
 | Name | Type | Required | Description |
 |---|---|---|---|
-| userID | string | v |User ID |
+| user_id | string | v |User ID |
+| game_id | string | v |Game ID |
 
 #### Body
 | Name | Type | Required | Description |
@@ -140,6 +152,6 @@ Example:
 Example:
 ```json
 {
-  "type": "tooLate"
+  "type": "too_late"
 }
 ```
