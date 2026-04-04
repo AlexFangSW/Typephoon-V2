@@ -24,3 +24,41 @@ GET /api/v1/game/status
 | name   | string | Alex |  | Player name|
 | id   | string | abc123 |  | Player ID|
 | me   | bool | true |  | Is this the current player |
+
+### 404
+#### Body
+| Name  | Type   | Example        | Nullable | Description       |
+| ---   | ---    | ---            | ---      | ---               |
+| error | string | `Game Not Found` |          | Game not found |
+
+
+## Example
+```bash
+curl -XGET http://localhost:8080/api/v1/match/queue-in \
+    -H 'Content-Type: application/json' \
+    -H 'match_token: xxx.xxx.xxx'
+```
+```json
+status: 200
+[
+  {
+    "connected": true,
+    "finish_ts": "2026-03-25T08:22:08Z",
+    "wpm": 123,
+    "acc": 99,
+    "name": "Player1",
+    "id": "abc123",
+    "me": false
+  }
+  ...
+  {
+    "connected": true,
+    "finish_ts": "2026-03-25T08:22:08Z",
+    "wpm": null,
+    "acc": null,
+    "name": "Player5",
+    "id": "abc555",
+    "me": false
+  }
+]
+```
