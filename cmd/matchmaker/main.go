@@ -1,14 +1,3 @@
-/*
-The service is designed with "Active-Passive" architecture in mind,
-we use an external cache as distributed lock, by acquiring the lock
-the matchmaker service becomes "active".
-
-Matchmaking logic:
-When client "queue-in", they are added to a queue.
-A background worker will consume the queue
-When match is found, each client will recive a JWT token that is used
-to connect to the game server.
-*/
 package main
 
 import (
@@ -24,6 +13,8 @@ import (
 
 	"github.com/alecthomas/kong"
 	kongyaml "github.com/alecthomas/kong-yaml"
+	nats "github.com/nats-io/nats.go"
+	redis "github.com/redis/go-redis/v9"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,8 +23,8 @@ type Config struct {
 	ConfigFile kong.ConfigFlag `name:"config_file" yaml:"-" placeholder:"./matchmaker.yaml" help:"Path to YAML config file"`
 
 	LogLevel      string        `name:"log_level" yaml:"log_level" enum:"DEBUG,INFO,WARNNING,ERROR" default:"INFO" env:"LOG_LEVEL" help:"Set log level"`
-	ListenAddress string        `name:"listen_address" yaml:"listen_address" default:":8080" env:"LISTEN_ADDRESS" help:"Server listen address"`
-	RedisUrl      string        `name:"redis_url" yaml:"redis_url" default:"localhost:6379" env:"REDIS_URL" help:"Redis url"`
+	NATSURL       string        `name:"nats_url" yaml:"nats_url" default:"nats://127.0.0.1:4222" env:"NATS_URL" help:"NATS URL"`
+	RedisURL      string        `name:"redis_url" yaml:"redis_url" default:"localhost:6379" env:"REDIS_URL" help:"Redis URL"`
 	MatchInterval time.Duration `name:"match_interval" yaml:"match_interval" default:"5s" env:"MATCH_INTERVAL" help:"Sleep interval before next round of matchmaking"`
 	MatchSize     int           `name:"match_size" yaml:"match_size" default:"5" env:"MATCH_SIZE" help:"Max players per game"`
 }
@@ -67,10 +58,22 @@ func (c *Config) Run() error {
 	}))
 	slog.SetDefault(logger)
 
+	// Connections and clients
+	natsConn, err := nats.Connect(c.NATSURL)
+	if err != nil {
+		return fmt.Errorf("nats connect: %w", err)
+	}
+	defer natsConn.Drain()
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: c.RedisURL,
+	})
+	defer redisClient.Close()
+
 	// Start main workflow
 	service := NewMatchmakingService(
-		c.ListenAddress,
-		c.RedisUrl,
+		natsConn,
+		redisClient,
 		c.MatchInterval,
 		c.MatchSize,
 	)
@@ -98,45 +101,21 @@ func (c *Config) Run() error {
 }
 
 type MatchmakingService struct {
-	server *http.Server
-
-	redisUrl      string
+	natsConn      *nats.Conn
+	redisClient   *redis.Client
 	matchInterval time.Duration
 	matchSize     int
+	events        chan string
 }
 
 func NewMatchmakingService(
-	listenAddr string,
-	redisUrl string,
+	natsConn *nats.Conn,
+	redisClient *redis.Client,
 	matchInterval time.Duration,
 	matchSize int,
 ) *MatchmakingService {
-	ms := &MatchmakingService{
-		redisUrl:      redisUrl,
-		matchInterval: matchInterval,
-		matchSize:     matchSize,
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/matchmaker/queue-int", LogMiddleware(ms.queueIn))
-	mux.HandleFunc("GET /health", LogMiddleware(ms.health))
-
-	server := &http.Server{
-		Addr:    listenAddr,
-		Handler: mux,
-	}
-	ms.server = server
 
 	return ms
-}
-
-// Add client to wait queue, this is just a channel.
-func (ms *MatchmakingService) queueIn(w http.ResponseWriter, r *http.Request) {
-
-}
-
-func (ms *MatchmakingService) health(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("ok"))
 }
 
 // Matchmaking background worker
@@ -151,43 +130,13 @@ func (ms *MatchmakingService) worker() {
 }
 
 func (ms *MatchmakingService) Start(ctx context.Context) error {
-	slog.Info("Start matchmaking service", "listen", ms.server.Addr)
-	// TODO: First it needs to aquire the 'active' lock.
-	//	If active lock is lost, return error
-	// TODO: Start background worker
-	return ms.server.ListenAndServe()
+	// TODO Subscribe to subject, `match.join`, `match.leave`
+	return nil
 }
 
 func (ms *MatchmakingService) Stop(ctx context.Context) error {
-	return ms.server.Shutdown(ctx)
-}
-
-// Custom response writer that has extra info
-type respWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func (rw *respWriter) WriteHeader(statusCode int) {
-	rw.statusCode = statusCode
-	rw.ResponseWriter.WriteHeader(statusCode)
-}
-
-func LogMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		slog.Info("Request", "method", r.Method, "path", r.URL.Path, "headers", r.Header)
-		start := time.Now()
-
-		rw := &respWriter{
-			ResponseWriter: w,
-			statusCode:     http.StatusOK,
-		}
-
-		next(rw, r)
-
-		totalTime := time.Since(start)
-		slog.Info("Response", "method", r.Method, "path", r.URL.Path, "headers", r.Header, "status", rw.statusCode, "duration", totalTime)
-	}
+	// TODO
+	return nil
 }
 
 func main() {

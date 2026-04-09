@@ -66,8 +66,8 @@ The queue lives entirely in-memory, if the active instance goes down, queued pla
 are disconnected and must re-queue.
 
 #### Responsibilities
-- **Queue management**: listens on `match.join` and `match.leave` subjects.
-  Maintains a single in-memory FIFO queue of players.
+- **Queue management**: listens on `match.join` subject.
+  Maintains a single in-memory FIFO queue of player events (join / leave).
 - **Match formation**: a single background worker continuously consumes the queue.
   When `match_size` players are available, a match is formed immediately.
   If a partial group has been waiting longer than `match_timeout`, the match starts
