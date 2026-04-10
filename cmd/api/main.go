@@ -3,5 +3,5 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Print("Hello from the general server")
+	fmt.Print("Hello from the api server")
 }
