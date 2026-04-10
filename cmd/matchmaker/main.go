@@ -139,12 +139,14 @@ func (ms *MatchmakingService) worker() {
 }
 
 func (ms *MatchmakingService) Start(ctx context.Context) error {
-	// TODO Subscribe to subject, `match.join`
+	// TODO
+	// - Aquire leader lock
+	// - Subscribe to subject: `match.join`
 	return nil
 }
 
 func (ms *MatchmakingService) Stop(ctx context.Context) error {
-	// TODO
+	// TODO, release leader lock ?
 	return nil
 }
 
