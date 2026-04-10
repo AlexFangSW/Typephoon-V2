@@ -4,12 +4,25 @@ import (
 	"encoding/json"
 )
 
-type EventType string
+type Event string
 
-var (
-	MatchJoin  EventType = "MATCH_JOIN"
-	MatchLeave EventType = "MATCH_LEAVE"
-)
+var Events = struct {
+	MatchJoin  Event
+	MatchLeave Event
+}{
+	MatchJoin:  "MATCH_JOIN",
+	MatchLeave: "MATCH_LEAVE",
+}
+
+type Header string
+
+var Headers = struct {
+	UserID Header
+	GameID Header
+}{
+	UserID: "User-ID",
+	GameID: "Game-ID",
+}
 
 type EventEnvelop struct {
 	Type    string          `json:"type"`

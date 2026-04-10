@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/AlexFangSW/Typephoon-V2/types"
 	"github.com/alecthomas/kong"
 	kongyaml "github.com/alecthomas/kong-yaml"
 	nats "github.com/nats-io/nats.go"
@@ -101,11 +102,13 @@ func (c *Config) Run() error {
 }
 
 type MatchmakingService struct {
-	natsConn      *nats.Conn
-	redisClient   *redis.Client
+	natsConn    *nats.Conn
+	redisClient *redis.Client
+
 	matchInterval time.Duration
 	matchSize     int
-	events        chan string
+
+	events chan types.EventEnvelop
 }
 
 func NewMatchmakingService(
@@ -114,8 +117,13 @@ func NewMatchmakingService(
 	matchInterval time.Duration,
 	matchSize int,
 ) *MatchmakingService {
-
-	return ms
+	return &MatchmakingService{
+		natsConn:      natsConn,
+		redisClient:   redisClient,
+		matchInterval: matchInterval,
+		matchSize:     matchSize,
+		events:        make(chan types.EventEnvelop),
+	}
 }
 
 // Matchmaking background worker
@@ -126,11 +134,12 @@ func NewMatchmakingService(
 // Timeout starts when the first player for the next group comes
 // in.
 func (ms *MatchmakingService) worker() {
-
+	// TODO: We consume events and keep a map of players and adjust according to the recived
+	// event type (join, leave)
 }
 
 func (ms *MatchmakingService) Start(ctx context.Context) error {
-	// TODO Subscribe to subject, `match.join`, `match.leave`
+	// TODO Subscribe to subject, `match.join`
 	return nil
 }
 
