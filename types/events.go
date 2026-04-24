@@ -25,6 +25,6 @@ var Headers = struct {
 }
 
 type EventEnvelop struct {
-	Type    string          `json:"type"`
+	Type    Event           `json:"type"`
 	Payload json.RawMessage `json:"payload,omitempty"`
 }
