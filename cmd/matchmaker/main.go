@@ -14,7 +14,6 @@ import (
 	"github.com/AlexFangSW/Typephoon-V2/types"
 	"github.com/alecthomas/kong"
 	kongyaml "github.com/alecthomas/kong-yaml"
-	"github.com/bsm/redislock"
 	nats "github.com/nats-io/nats.go"
 	redis "github.com/redis/go-redis/v9"
 	"gopkg.in/yaml.v3"
@@ -78,15 +77,6 @@ func (c *Config) Run() error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	// TODO: try to obtain leader lock, only start after lock is aquired,
-	// keep refreshing lock, if lock is lost, terminate process
-	locker := redislock.New(redisClient)
-	lock, err := locker.Obtain(ctx, leaderKey, 1*time.Second, &redislock.Options{})
-	if err != nil && errors.Is(err, redislock.ErrNotObtained) {
-		return fmt.Errorf("leader lock obtain: %w", err)
-	}
-	defer lock.Release(ctx)
 
 	// Start main workflow
 	service := NewMatchmakingService(
@@ -154,8 +144,11 @@ func (ms *MatchmakingService) worker() {
 }
 
 func (ms *MatchmakingService) Start(ctx context.Context) error {
-	// TODO
+	// TODO:
 	// - Subscribe to subject: `match.join`
+	// - Try to obtain leader lock, only start after lock is aquired,
+	// keep refreshing lock, if lock is lost, return error
+
 	return nil
 }
 
