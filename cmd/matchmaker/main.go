@@ -164,13 +164,51 @@ func (ms *MatchmakingService) worker(ctx context.Context) {
 			var msgBody types.EventEnvelop
 			if err := json.Unmarshal(msg.Data, &msgBody); err != nil {
 				slog.Warn("bad message", "msg", msg.Data, "header", msg.Header, "error", err)
-				// TODO: Reply error
+
+				// Reply with error
+				payload, jsonErr := json.Marshal(types.ErrorPayload{
+					Error: fmt.Sprintf("failed to unmarshal payload, error: %s", err),
+				})
+				if jsonErr != nil {
+					slog.Warn("failed to marshal error msg payload")
+					continue
+				}
+
+				data, jsonErr := json.Marshal(types.EventEnvelop{
+					Type:    types.Events.Error,
+					Payload: payload,
+				})
+				if jsonErr != nil {
+					slog.Warn("failed to marshal error msg")
+					continue
+				}
+
+				ms.natsConn.Publish(msg.Reply, data)
 				continue
 			}
 			userID := msg.Header.Get(string(types.Headers.UserID))
 			if userID == "" {
 				slog.Warn("missing user ID")
-				// TODO: Reply error
+
+				// Reply with error
+				payload, jsonErr := json.Marshal(types.ErrorPayload{
+					Error: "missing user ID",
+				})
+				if jsonErr != nil {
+					slog.Warn("failed to marshal error msg payload")
+					continue
+				}
+
+				data, jsonErr := json.Marshal(types.EventEnvelop{
+					Type:    types.Events.Error,
+					Payload: payload,
+				})
+				if jsonErr != nil {
+					slog.Warn("failed to marshal error msg")
+					continue
+				}
+
+				ms.natsConn.Publish(msg.Reply, data)
 				continue
 			}
 

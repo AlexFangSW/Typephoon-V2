@@ -17,9 +17,11 @@ type Event string
 var Events = struct {
 	MatchJoin  Event
 	MatchLeave Event
+	Error      Event
 }{
 	MatchJoin:  "MATCH_JOIN",
 	MatchLeave: "MATCH_LEAVE",
+	Error:      "Error",
 }
 
 type Header string
@@ -35,4 +37,8 @@ var Headers = struct {
 type EventEnvelop struct {
 	Type    Event           `json:"type"`
 	Payload json.RawMessage `json:"payload,omitempty"`
+}
+
+type ErrorPayload struct {
+	Error string `json:"error"`
 }
