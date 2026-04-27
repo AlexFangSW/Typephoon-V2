@@ -4,6 +4,14 @@ import (
 	"encoding/json"
 )
 
+type Subject string
+
+var Subjects = struct {
+	MatchJoin Subject
+}{
+	MatchJoin: "match.join",
+}
+
 type Event string
 
 var Events = struct {

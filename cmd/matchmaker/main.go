@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"github.com/AlexFangSW/Typephoon-V2/types"
 	"github.com/alecthomas/kong"
 	kongyaml "github.com/alecthomas/kong-yaml"
+	"github.com/bsm/redislock"
 	nats "github.com/nats-io/nats.go"
 	redis "github.com/redis/go-redis/v9"
 	"gopkg.in/yaml.v3"
@@ -32,6 +34,7 @@ type Config struct {
 	RedisURL      string        `name:"redis_url" yaml:"redis_url" default:"localhost:6379" env:"REDIS_URL" help:"Redis URL"`
 	MatchInterval time.Duration `name:"match_interval" yaml:"match_interval" default:"5s" env:"MATCH_INTERVAL" help:"Sleep interval before next round of matchmaking"`
 	MatchSize     int           `name:"match_size" yaml:"match_size" default:"5" env:"MATCH_SIZE" help:"Max players per game"`
+	LeaderLockTTL time.Duration `name:"leader_lock_ttl" yaml:"leader_lock_ttl" default:"5s" env:"LEADER_LOCK_TTL" help:"Leader lock TTL"`
 }
 
 func (c *Config) Run() error {
@@ -84,6 +87,7 @@ func (c *Config) Run() error {
 		redisClient,
 		c.MatchInterval,
 		c.MatchSize,
+		c.LeaderLockTTL,
 	)
 
 	serviceErr := make(chan error, 1)
@@ -112,8 +116,10 @@ type MatchmakingService struct {
 
 	matchInterval time.Duration
 	matchSize     int
+	leaderLockTTL time.Duration
 
-	events chan types.EventEnvelop
+	subject types.Subject
+	events  chan *nats.Msg
 }
 
 func NewMatchmakingService(
@@ -121,14 +127,22 @@ func NewMatchmakingService(
 	redisClient *redis.Client,
 	matchInterval time.Duration,
 	matchSize int,
+	leaderLockTTL time.Duration,
 ) *MatchmakingService {
 	return &MatchmakingService{
 		natsConn:      natsConn,
 		redisClient:   redisClient,
 		matchInterval: matchInterval,
 		matchSize:     matchSize,
-		events:        make(chan types.EventEnvelop),
+		leaderLockTTL: leaderLockTTL,
+		subject:       types.Subjects.MatchJoin,
+		events:        make(chan *nats.Msg),
 	}
+}
+
+type playerInfo struct {
+	msg    *nats.Msg
+	userID string
 }
 
 // Matchmaking background worker
@@ -138,18 +152,139 @@ func NewMatchmakingService(
 // happens.
 // Timeout starts when the first player for the next group comes
 // in.
-func (ms *MatchmakingService) worker() {
-	// TODO: We consume events and keep a map of players and adjust according to the recived
-	// event type (join, leave)
+func (ms *MatchmakingService) worker(ctx context.Context) {
+	var playerPool = make(map[string]playerInfo)
+	var timer *time.Timer
+	var timerChan <-chan time.Time // Select will ignore nil channel
+
+	for {
+		select {
+		case msg := <-ms.events:
+			// Parse message
+			var msgBody types.EventEnvelop
+			if err := json.Unmarshal(msg.Data, &msgBody); err != nil {
+				slog.Warn("bad message", "msg", msg.Data, "header", msg.Header, "error", err)
+				// TODO: Reply error
+				continue
+			}
+			userID := msg.Header.Get(string(types.Headers.UserID))
+			if userID == "" {
+				slog.Warn("missing user ID")
+				// TODO: Reply error
+				continue
+			}
+
+			switch msgBody.Type {
+			case types.Events.MatchJoin:
+				if timer == nil {
+					timer = time.NewTimer(ms.matchInterval)
+					timerChan = timer.C
+				}
+
+				player := playerInfo{
+					msg:    msg,
+					userID: msg.Header.Get(string(types.Headers.UserID)),
+				}
+				playerPool[player.userID] = player
+
+				// Check current size
+				if len(playerPool) < ms.matchSize {
+					continue
+				}
+				// TODO: Provision a game
+				// TODO: Reply
+
+				// Reset
+				clear(playerPool)
+				timer.Stop()
+				timerChan = nil
+			case types.Events.MatchLeave:
+				delete(playerPool, userID)
+				if len(playerPool) == 0 {
+					// Reset
+					timer.Stop()
+					timerChan = nil
+				}
+			}
+
+		case <-timerChan:
+			// TODO: Provision a game
+			// TODO: Reply
+
+			// Reset
+			timer.Stop()
+			timerChan = nil
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// Try to aquire leader lock
+// A total of two events will be sent in its lifetime
+// - true: when we aquire the lock
+// - false: when we lose the lock
+func (ms *MatchmakingService) aquireLeader(ctx context.Context, resultChan chan<- bool) {
+	locker := redislock.New(ms.redisClient)
+	aquired := false
+	var lock *redislock.Lock
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		default:
+			time.Sleep(ms.leaderLockTTL / 2)
+			slog.Debug("leader lock state", "aquired", aquired)
+
+			if !aquired {
+				var err error
+				lock, err = locker.Obtain(ctx, leaderKey, ms.leaderLockTTL, &redislock.Options{})
+				if err != nil {
+					continue
+				}
+				defer lock.Release(ctx)
+				aquired = true
+				resultChan <- true
+			}
+
+			if err := lock.Refresh(ctx, ms.leaderLockTTL, &redislock.Options{}); err != nil {
+				resultChan <- false
+				return
+			}
+		}
+	}
 }
 
 func (ms *MatchmakingService) Start(ctx context.Context) error {
-	// TODO:
-	// - Subscribe to subject: `match.join`
-	// - Try to obtain leader lock, only start after lock is aquired,
-	// keep refreshing lock, if lock is lost, return error
+	leaderChan := make(chan bool)
+	go ms.aquireLeader(ctx, leaderChan)
+	<-leaderChan
 
-	return nil
+	sub, err := ms.natsConn.Subscribe(string(ms.subject), func(msg *nats.Msg) {
+		ms.events <- msg
+	})
+	if err != nil {
+		return fmt.Errorf("nats subscribe: %w", err)
+	}
+	go ms.worker(ctx)
+
+	defer func(sub *nats.Subscription) {
+		sub.Unsubscribe()
+		sub.Drain()
+	}(sub)
+
+	for {
+		select {
+		case aquired := <-leaderChan:
+			if !aquired {
+				return errors.New("lost the leader lock")
+			}
+		case <-ctx.Done():
+			return nil
+		}
+	}
 }
 
 func (ms *MatchmakingService) Stop(ctx context.Context) error {
