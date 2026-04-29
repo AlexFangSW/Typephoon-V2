@@ -65,7 +65,7 @@ The queue lives entirely in-memory, if the active instance goes down, queued pla
 are disconnected and must re-queue.
 
 #### Responsibilities
-- **Queue management**: listens on `match.join` subject.
+- **Queue management**: listens on `match.join` / `match.leave` subject.
   Maintains a single in-memory FIFO queue of player events (join / leave).
 - **Match formation**: a single background worker continuously consumes the queue.
   When `match_size` players are available, a match is formed immediately.
@@ -94,9 +94,9 @@ lives in-memory, can scale horizontally.
   The server stores this and checks correctness. If the position is wrong, the server
   sends a correction (full current input string) and the client snaps back.
   A player finishes when the last word is typed correctly.
-- **Event broadcasting**: sends events to all players in the game via `game.<ID>.out.<playerID>`:
+- **Event broadcasting**: sends events to all players in the game via `game.<ID>.out.<event>.<playerID>`:
   countdown, game start, player keystrokes, correction, player finish, game over.
-  Receives player input via `game.<ID>.in`.
+  Receives player input via `game.<ID>.in.<event>`.
 - **Result storage**: updates the Redis entry with WPM, accuracy, and finish time
   as each player completes. The frontend polls these results through the API service.
   If the player is logged in, the result is also stored in the database.
@@ -119,7 +119,7 @@ sequenceDiagram
 After aquiring the JWT token, the client connect to the game through the API service.  
 API service uses the JWT token provided to find which subject to listen.  
 
-- API Service -> Game Server: `game.<ID>.in`  
-- Game Server -> API Service: `game.<ID>.out.<playerID>`  
+- API Service -> Game Server: `game.<ID>.in.<event>`  
+- Game Server -> API Service: `game.<ID>.out.<event>.<playerID>`  
 
 This two subject will run in parallel, they are not sequantial.
