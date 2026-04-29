@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/AlexFangSW/Typephoon-V2/types"
+	"github.com/AlexFangSW/Typephoon-V2/subjects"
 	"github.com/alecthomas/kong"
 	kongyaml "github.com/alecthomas/kong-yaml"
 	"github.com/bsm/redislock"
@@ -110,6 +109,12 @@ func (c *Config) Run() error {
 	}
 }
 
+type user struct {
+	ID   string
+	Name string
+	Msg  *nats.Msg
+}
+
 type MatchmakingService struct {
 	natsConn    *nats.Conn
 	redisClient *redis.Client
@@ -118,8 +123,12 @@ type MatchmakingService struct {
 	matchSize     int
 	leaderLockTTL time.Duration
 
-	subject types.Subject
-	events  chan *nats.Msg
+	joinMsg  chan *nats.Msg
+	leaveMsg chan *nats.Msg
+
+	pool      map[string]user
+	timer     *time.Timer
+	timerChan <-chan time.Time
 }
 
 func NewMatchmakingService(
@@ -135,14 +144,27 @@ func NewMatchmakingService(
 		matchInterval: matchInterval,
 		matchSize:     matchSize,
 		leaderLockTTL: leaderLockTTL,
-		subject:       types.Subjects.MatchJoin,
-		events:        make(chan *nats.Msg),
+		joinMsg:       make(chan *nats.Msg),
+		leaveMsg:      make(chan *nats.Msg),
+		pool:          make(map[string]user),
 	}
 }
 
-type playerInfo struct {
-	msg    *nats.Msg
-	userID string
+func (ms *MatchmakingService) handleJoin(ctx context.Context, msg *nats.Msg) error {
+	return nil
+}
+
+func (ms *MatchmakingService) handleLeave(ctx context.Context, msg *nats.Msg) error {
+	return nil
+}
+
+func (ms *MatchmakingService) reset() {
+	clear(ms.pool)
+	ms.timer.Stop()
+	ms.timerChan = nil
+}
+
+func (ms *MatchmakingService) provisionGame(ctx context.Context) {
 }
 
 // Matchmaking background worker
@@ -153,105 +175,18 @@ type playerInfo struct {
 // Timeout starts when the first player for the next group comes
 // in.
 func (ms *MatchmakingService) worker(ctx context.Context) {
-	var playerPool = make(map[string]playerInfo)
-	var timer *time.Timer
-	var timerChan <-chan time.Time // Select will ignore nil channel
-
 	for {
 		select {
-		case msg := <-ms.events:
-			// Parse message
-			var msgBody types.EventEnvelop
-			if err := json.Unmarshal(msg.Data, &msgBody); err != nil {
-				slog.Warn("bad message", "msg", msg.Data, "header", msg.Header, "error", err)
-
-				// Reply with error
-				payload, jsonErr := json.Marshal(types.ErrorPayload{
-					Error: fmt.Sprintf("failed to unmarshal payload, error: %s", err),
-				})
-				if jsonErr != nil {
-					slog.Warn("failed to marshal error msg payload")
-					continue
-				}
-
-				data, jsonErr := json.Marshal(types.EventEnvelop{
-					Type:    types.Events.Error,
-					Payload: payload,
-				})
-				if jsonErr != nil {
-					slog.Warn("failed to marshal error msg")
-					continue
-				}
-
-				ms.natsConn.Publish(msg.Reply, data)
-				continue
+		case msg := <-ms.joinMsg:
+			if err := ms.handleJoin(ctx, msg); err != nil {
+				// depending on the error, resp to current msg or all players
 			}
-			userID := msg.Header.Get(string(types.Headers.UserID))
-			if userID == "" {
-				slog.Warn("missing user ID")
-
-				// Reply with error
-				payload, jsonErr := json.Marshal(types.ErrorPayload{
-					Error: "missing user ID",
-				})
-				if jsonErr != nil {
-					slog.Warn("failed to marshal error msg payload")
-					continue
-				}
-
-				data, jsonErr := json.Marshal(types.EventEnvelop{
-					Type:    types.Events.Error,
-					Payload: payload,
-				})
-				if jsonErr != nil {
-					slog.Warn("failed to marshal error msg")
-					continue
-				}
-
-				ms.natsConn.Publish(msg.Reply, data)
-				continue
+		case msg := <-ms.leaveMsg:
+			if err := ms.handleLeave(ctx, msg); err != nil {
+				// depending on the error, resp to current msg or all players
 			}
-
-			switch msgBody.Type {
-			case types.Events.MatchJoin:
-				if timer == nil {
-					timer = time.NewTimer(ms.matchInterval)
-					timerChan = timer.C
-				}
-
-				player := playerInfo{
-					msg:    msg,
-					userID: msg.Header.Get(string(types.Headers.UserID)),
-				}
-				playerPool[player.userID] = player
-
-				// Check current size
-				if len(playerPool) < ms.matchSize {
-					continue
-				}
-				// TODO: Provision a game
-				// TODO: Reply
-
-				// Reset
-				clear(playerPool)
-				timer.Stop()
-				timerChan = nil
-			case types.Events.MatchLeave:
-				delete(playerPool, userID)
-				if len(playerPool) == 0 {
-					// Reset
-					timer.Stop()
-					timerChan = nil
-				}
-			}
-
-		case <-timerChan:
-			// TODO: Provision a game
-			// TODO: Reply
-
-			// Reset
-			timer.Stop()
-			timerChan = nil
+		case <-ms.timerChan:
+			ms.provisionGame(ctx)
 		case <-ctx.Done():
 			return
 		}
@@ -300,18 +235,25 @@ func (ms *MatchmakingService) Start(ctx context.Context) error {
 	go ms.aquireLeader(ctx, leaderChan)
 	<-leaderChan
 
-	sub, err := ms.natsConn.Subscribe(string(ms.subject), func(msg *nats.Msg) {
-		ms.events <- msg
-	})
+	subJoin, err := ms.natsConn.ChanSubscribe(string(subjects.MatchJoin), ms.joinMsg)
 	if err != nil {
-		return fmt.Errorf("nats subscribe: %w", err)
+		return fmt.Errorf("chan subscribe match join: %w", err)
 	}
-	go ms.worker(ctx)
-
 	defer func(sub *nats.Subscription) {
 		sub.Unsubscribe()
 		sub.Drain()
-	}(sub)
+	}(subJoin)
+
+	subLeave, err := ms.natsConn.ChanSubscribe(string(subjects.MatchLeave), ms.leaveMsg)
+	if err != nil {
+		return fmt.Errorf("chan subscribe match join: %w", err)
+	}
+	defer func(sub *nats.Subscription) {
+		sub.Unsubscribe()
+		sub.Drain()
+	}(subLeave)
+
+	go ms.worker(ctx)
 
 	for {
 		select {
